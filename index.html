@@ -1,0 +1,549 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PAG Portfolio Monitor</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+  .viz-root{
+    --ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    color-scheme:light;
+    --surface-1:#fcfcfb; --plane:#f9f9f7;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --series-1:#2a78d6; --series-2:#eb6834; --series-3:#1baf7a; --series-4:#eda100;
+    --series-5:#e87ba4; --series-6:#008300; --series-7:#4a3aa7; --series-8:#e34948;
+    --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+    --up:#006300; --down:#d03b3b;
+    --seq-1:#cde2fb; --seq-4:#3987e5; --seq-7:#0d366b;
+  }
+  @media (prefers-color-scheme:dark){ :root:where(:not([data-theme="light"])) .viz-root{
+    color-scheme:dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70; --series-4:#c98500;
+    --series-5:#d55181; --series-6:#008300; --series-7:#9085e9; --series-8:#e66767;
+    --up:#0ca30c; --down:#d03b3b;
+  }}
+  :root[data-theme="dark"] .viz-root{
+    color-scheme:dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70; --series-4:#c98500;
+    --series-5:#d55181; --series-6:#008300; --series-7:#9085e9; --series-8:#e66767;
+    --up:#0ca30c; --down:#d03b3b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0}
+  .viz-root{
+    background:var(--plane); color:var(--text-primary);
+    font:15px/1.5 var(--ui);
+    padding:28px 20px 64px; min-height:100vh;
+  }
+  .wrap{max-width:1180px;margin:0 auto}
+  header.hd{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:8px}
+  .eyebrow{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  h1{font-size:27px;margin:5px 0 0;font-weight:600;letter-spacing:-.02em;text-wrap:balance}
+  .sub{color:var(--text-secondary);font-size:13.5px;margin-top:4px}
+  .stamp{font-size:11.5px;color:var(--muted);margin-top:8px;font-variant-numeric:tabular-nums}
+  .demo{display:inline-block;margin-top:10px;font-size:12px;padding:4px 9px;border-radius:999px;
+        background:color-mix(in srgb,var(--warning) 18%,var(--surface-1));
+        color:var(--text-primary);border:1px solid var(--border)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:10px;margin:22px 0 26px}
+  .kpi{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:13px 14px}
+  .kpi .k{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .kpi .v{font-family:var(--mono);font-size:22px;font-weight:600;margin-top:6px;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums}
+  .kpi .n{font-size:11.5px;color:var(--text-secondary);margin-top:4px;font-variant-numeric:tabular-nums}
+  .up{color:var(--up)} .down{color:var(--down)}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:16px}
+  .card{background:var(--surface-1);border:1px solid var(--border);border-radius:12px;padding:16px 18px 14px;margin-bottom:16px;overflow:hidden}
+  .card h2{font-size:14.5px;margin:0;font-weight:640;letter-spacing:-.005em}
+  .card .cs{font-size:12.5px;color:var(--text-secondary);margin:3px 0 12px}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:0 0 8px;font-size:12.5px;color:var(--text-secondary)}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:-1px}
+  svg{display:block;width:100%;height:auto;overflow:visible}
+  .gl{stroke:var(--grid);stroke-width:1}
+  .ax{stroke:var(--axis);stroke-width:1}
+  .tick{fill:var(--muted);font-size:11px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .tipbox{position:fixed;pointer-events:none;z-index:60;background:var(--surface-1);
+    border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.5px;
+    box-shadow:0 6px 22px rgba(0,0,0,.16);opacity:0;transition:opacity .09s;max-width:280px}
+  .tipbox b{font-weight:640}
+  .tipbox .r{display:flex;justify-content:space-between;gap:16px;font-variant-numeric:tabular-nums}
+  .tipbox .r b{font-family:var(--mono);font-weight:500}
+  .tipbox .sw{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:6px}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .tab{font:inherit;font-size:12.5px;padding:5px 11px;border-radius:999px;cursor:pointer;
+       border:1px solid var(--border);background:transparent;color:var(--text-secondary)}
+  .tab[aria-pressed="true"]{background:var(--text-primary);color:var(--surface-1);border-color:var(--text-primary)}
+  .tblwrap{overflow-x:auto;margin:0 -4px}
+  table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+  td:not(:first-child):not(:nth-child(2)){font-family:var(--mono);font-size:12.5px}
+  th,td{padding:7px 9px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--grid)}
+  th:first-child,td:first-child{text-align:left;white-space:normal;min-width:190px}
+  th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:640;
+     cursor:pointer;user-select:none;border-bottom:1px solid var(--axis);position:sticky;top:0;background:var(--surface-1)}
+  th.so::after{content:"";margin-left:5px;opacity:.85}
+  th[data-dir="1"]::after{content:"\2191"} th[data-dir="-1"]::after{content:"\2193"}
+  tbody tr:hover{background:color-mix(in srgb,var(--text-primary) 4%,transparent)}
+  tfoot td{font-weight:640;border-top:1px solid var(--axis);border-bottom:none}
+  .dot{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:7px;vertical-align:0}
+  .note{font-size:12.5px;color:var(--text-secondary);margin-top:10px;line-height:1.55}
+  footer{margin-top:26px;padding-top:16px;border-top:1px solid var(--border);
+         font-size:12.5px;color:var(--text-secondary);line-height:1.6}
+  code{font-family:var(--mono);font-size:12px;
+       background:color-mix(in srgb,var(--text-primary) 6%,transparent);padding:1px 5px;border-radius:4px}
+</style></head><body>
+
+<div class="viz-root">
+<div class="wrap">
+
+  <header class="hd">
+    <div>
+      <div class="eyebrow">Portfolio Analytics Group &middot; weekly report</div>
+      <h1>Portfolio Monitor</h1>
+      <div class="sub" id="asof"></div>
+      <div class="demo">Sample data &mdash; replace PAG_Book.xlsx with the real book</div>
+      <div class="stamp"></div>
+    </div>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <h2>Cumulative return vs benchmark</h2>
+    <div class="cs">Time-weighted, net of fees. External capital flows excluded from the numerator.</div>
+    <div class="legend">
+      <span><i style="background:var(--series-1)"></i>Portfolio</span>
+      <span><i style="background:var(--series-2)"></i><span id="benchname">Benchmark</span></span>
+    </div>
+    <div id="c-curve"></div>
+  </div>
+
+  <div class="card">
+    <h2>Drawdown from peak</h2>
+    <div class="cs">Peak-to-trough decline of the time-weighted index.</div>
+    <div id="c-dd"></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Exposure by sector</h2>
+      <div class="cs">Gross notional as a share of NAV. Delta-adjusted, so the two legs of a spread cannot double-count the underlying. Futures carry no market value, so exposure is measured on notional.</div>
+      <div id="c-exp"></div>
+    </div>
+    <div class="card">
+      <h2>Component VaR by sector</h2>
+      <div class="cs">Euler decomposition &mdash; each sector's marginal contribution to total portfolio VaR. Sums to total, so a diversifying sector can read negative.</div>
+      <div id="c-cvar"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Stress scenarios</h2>
+    <div class="cs">Instantaneous revaluation. Options repriced with delta and gamma; rate exposure through DV01.</div>
+    <div id="c-stress"></div>
+  </div>
+
+  <div class="card">
+      <h2>Income received</h2>
+      <div class="cs">Dividends, bond coupons and cash-sweep interest &mdash; accrued from the blotter, not typed in.</div>
+      <div class="legend">
+        <span><i style="background:var(--series-1)"></i>Dividends</span>
+        <span><i style="background:var(--series-2)"></i>Coupons</span>
+        <span><i style="background:var(--series-3)"></i>Cash interest</span>
+      </div>
+      <div id="c-inc"></div>
+  </div>
+
+  <div class="card">
+    <h2>Holdings</h2>
+    <div class="cs">Option legs roll up into the strategy that owns them. Click any column header to sort.</div>
+    <div class="tabs" id="secfilter"></div>
+    <div class="tblwrap"><table id="t-hold"></table></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Options book &mdash; Greeks</h2>
+      <div class="cs">Position Greeks: delta in underlying shares, gamma per $1 move, vega per vol point, theta per day.</div>
+      <div class="tblwrap"><table id="t-greeks"></table></div>
+    </div>
+    <div class="card">
+      <h2>Fixed income risk</h2>
+      <div class="cs">Modified duration, convexity and DV01. Cash bonds carry accrued interest separately from clean price.</div>
+      <div class="tblwrap"><table id="t-fi"></table></div>
+    </div>
+  </div>
+
+  <footer>
+    Every figure on this page is derived from three flat inputs &mdash;
+    <code>instruments</code>, <code>transactions</code> and <code>prices</code>.
+    No number is typed twice, and no cell holds a hardcoded result.
+    Option marks use Black&ndash;Scholes with a 60-day realised-vol proxy;
+    substitute Bloomberg <code>IVOL_MID</code> for production reporting.
+  </footer>
+</div>
+</div>
+
+<div class="tipbox" id="tip"></div>
+
+<script>
+const D = {"public": true, "generated": "2026-09-04 20:46 UTC", "club": "Portfolio Analytics Group", "benchmark": "SPY", "stats": {"AsOf": "2026-09-04", "Leverage": 1.0118768060001606, "CashPct": 0.11820866924916147, "RetWTD": 0.007495566118380204, "RetYTD": 0.030976112968547742, "RetITD": 0.030976112968547742, "BenchWTD": 0.0010918657075784655, "BenchYTD": 0.12415161641204508, "BenchITD": 0.12415161641204508, "Vol": 0.0697686991493116, "Sharpe": 0.2531847488673758, "Sortino": 0.3273567171429854, "Calmar": 1.7993860941487114, "MaxDD": -0.03332696732449847, "CurrentDD": -1.316145378560396e-05, "Beta": 0.3801005340317952, "TrackingError": 0.09758054070556224, "InfoRatio": -1.7652007527144762, "HitRate": 0.553030303030303, "VaRPctNAV": 0.031237762678732187, "VaR95Pct": 0.01938591786090714, "ESPct": 0.039266474181282665, "VaRParamPct": 0.027929342109262855, "NetDeltaPct": 0.9744791140866601, "BetaExpPct": 0.5538176790667728, "DV01bp": 1.2319986716662759, "Vegabp": 1.9766737194447843, "Thetabp": -0.24129502976308378, "IncomeYTDPct": 0.00827599989384005, "IncomeITDPct": 0.00827599989384005, "Positions": 8}, "curve": {"dates": ["2026-03-06", "2026-03-13", "2026-03-20", "2026-03-27", "2026-04-03", "2026-04-10", "2026-04-17", "2026-04-24", "2026-05-01", "2026-05-08", "2026-05-15", "2026-05-22", "2026-05-29", "2026-06-05", "2026-06-12", "2026-06-19", "2026-06-26", "2026-07-03", "2026-07-10", "2026-07-17", "2026-07-24", "2026-07-31", "2026-08-07", "2026-08-14", "2026-08-21", "2026-08-28", "2026-09-04"], "port": [-0.559, -1.517, -3.115, -2.537, -1.724, -0.751, 0.118, -0.204, 0.065, 0.311, 0.01, 0.41, 0.269, -1.063, -0.742, -1.492, -2.366, -1.881, -1.362, -1.271, -1.006, -0.395, 0.971, 2.223, 3.2, 2.431, 3.198], "bench": [-1.861, -3.334, -5.336, -7.45, -4.277, -0.828, 3.65, 4.205, 5.184, 7.661, 7.888, 8.832, 10.414, 7.651, 8.264, 8.992, 6.402, 8.706, 10.191, 8.489, 7.853, 9.035, 12.863, 13.313, 11.763, 12.293, 12.415], "dd": [-0.656, -1.613, -3.209, -2.632, -1.82, -0.848, 0.0, -0.322, -0.212, -0.251, -0.63, -0.233, -0.373, -1.697, -1.378, -2.123, -2.991, -2.51, -1.994, -1.903, -1.64, -1.033, 0.0, 0.0, 0.0, -0.745, -0.001], "nav": null}, "income": {"months": ["2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"], "dividend": [0.001284914757382699, 0.0004441740458134415, 0.0004371681154691176, 0.003939542192539768, 0.0004357727434503311, 0.0004455791079156918, 0.00046519183684641313], "coupon": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0008236570944225866, 0.0], "interest": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, "sectors": [{"Sector": "EQD", "SectorName": "Equity Derivatives", "MarketValue": 0.1629902153, "Notional": 0.898569931, "WTDPnL": 0.0109068796, "YTDPnL": 0.0275552899, "DeltaExposure": 0.2930756906, "BetaExposure": 0.2930756906, "DV01": 0.0, "Vega": 0.0001976674, "Theta": -2.41295e-05, "Income": 0.000731611, "Positions": 2, "Exposure": 0.2930756906, "PctNAV": 0.2930756906, "WTDRet": 0.012138042, "YTDRet": 0.0306657156, "WTDContrib": 0.0109068796, "YTDContrib": 0.0275552899, "RateShock": -0.0, "IncomePct": 0.000731611, "ComponentVaR": 0.0109739035, "VaRShare": 0.3929166483}, {"Sector": "IR", "SectorName": "Interest Rate Products", "MarketValue": 0.1666571068, "Notional": 0.1666571068, "WTDPnL": -0.00098601, "YTDPnL": -0.0083597466, "DeltaExposure": 0.1292594149, "BetaExposure": -0.0155111298, "DV01": 0.0001231999, "Vega": 0.0, "Theta": 0.0, "Income": 0.003495717, "Positions": 2, "Exposure": 0.1666571068, "PctNAV": 0.1666571068, "WTDRet": -0.0059163996, "YTDRet": -0.050161357, "WTDContrib": -0.00098601, "YTDContrib": -0.0083597466, "RateShock": -0.0123199867, "IncomePct": 0.003495717, "ComponentVaR": 0.0015474866, "VaRShare": 0.0554071987}, {"Sector": "E", "SectorName": "Energy", "MarketValue": 0.1546900834, "Notional": 0.1546900834, "WTDPnL": 0.0033323743, "YTDPnL": 0.0190042279, "DeltaExposure": 0.1546900834, "BetaExposure": 0.1268458684, "DV01": 0.0, "Vega": 0.0, "Theta": 0.0, "Income": 0.001859372, "Positions": 1, "Exposure": 0.1546900834, "PctNAV": 0.1546900834, "WTDRet": 0.021542262, "YTDRet": 0.1228535628, "WTDContrib": 0.0033323743, "YTDContrib": 0.0190042279, "RateShock": -0.0, "IncomePct": 0.001859372, "ComponentVaR": -0.0009297223, "VaRShare": -0.0332883702}, {"Sector": "IND", "SectorName": "Index Derivatives", "MarketValue": 0.144994025, "Notional": 0.144994025, "WTDPnL": 0.0008430627, "YTDPnL": 0.0093272593, "DeltaExposure": 0.144994025, "BetaExposure": 0.1232449212, "DV01": 0.0, "Vega": 0.0, "Theta": 0.0, "Income": 0.0021892999, "Positions": 1, "Exposure": 0.144994025, "PctNAV": 0.144994025, "WTDRet": 0.0058144648, "YTDRet": 0.064328577, "WTDContrib": 0.0008430627, "YTDContrib": 0.0093272593, "RateShock": -0.0, "IncomePct": 0.0021892999, "ComponentVaR": 0.0073119369, "VaRShare": 0.261801259}, {"Sector": "FX", "SectorName": "Foreign Exchange", "MarketValue": 0.1353933365, "Notional": 0.1353933365, "WTDPnL": 0.0002148075, "YTDPnL": -0.0003158967, "DeltaExposure": 0.1353933365, "BetaExposure": 0.0203090005, "DV01": 0.0, "Vega": 0.0, "Theta": 0.0, "Income": 0.0, "Positions": 1, "Exposure": 0.1353933365, "PctNAV": 0.1353933365, "WTDRet": 0.0015865438, "YTDRet": -0.0023331778, "WTDContrib": 0.0002148075, "YTDContrib": -0.0003158967, "RateShock": -0.0, "IncomePct": 0.0, "ComponentVaR": 0.0015684332, "VaRShare": 0.0561571836}, {"Sector": "M", "SectorName": "Metals", "MarketValue": 0.1170665638, "Notional": 0.1170665638, "WTDPnL": -0.0006101338, "YTDPnL": -0.0187153396, "DeltaExposure": 0.1170665638, "BetaExposure": 0.0058533282, "DV01": 0.0, "Vega": 0.0, "Theta": 0.0, "Income": 0.0, "Positions": 1, "Exposure": 0.1170665638, "PctNAV": 0.1170665638, "WTDRet": -0.0052118536, "YTDRet": -0.1598692149, "WTDContrib": -0.0006101338, "YTDContrib": -0.0187153396, "RateShock": -0.0, "IncomePct": 0.0, "ComponentVaR": 0.0074573042, "VaRShare": 0.2670060805}], "strategies": [{"Strategy": "Energy Select Sector SPDR Fund", "Sector": "E", "SectorName": "Energy", "AssetClass": "Equity ETF", "MarketValue": 0.1546900834, "WTDPnL": 0.0033323743, "YTDPnL": 0.0190042279, "CashGamma": 0.0, "DeltaExposure": 0.1546900834, "DV01": 0.0, "Income": 0.001859372, "Legs": 1, "Expiry": "\u2014", "NetExposure": 0.1546900834, "Exposure": 0.1546900834, "PctNAV": 0.1546900834}, {"Strategy": "SPDR S&P 500 ETF Trust", "Sector": "EQD", "SectorName": "Equity Derivatives", "AssetClass": "Equity ETF", "MarketValue": 0.1522493903, "WTDPnL": 0.0001660546, "YTDPnL": 0.0168144649, "CashGamma": 0.0, "DeltaExposure": 0.1522493903, "DV01": 0.0, "Income": 0.000731611, "Legs": 1, "Expiry": "\u2014", "NetExposure": 0.1522493903, "Exposure": 0.1522493903, "PctNAV": 0.1522493903}, {"Strategy": "iShares MSCI EAFE ETF", "Sector": "IND", "SectorName": "Index Derivatives", "AssetClass": "Equity ETF", "MarketValue": 0.144994025, "WTDPnL": 0.0008430627, "YTDPnL": 0.0093272593, "CashGamma": 0.0, "DeltaExposure": 0.144994025, "DV01": 0.0, "Income": 0.0021892999, "Legs": 1, "Expiry": "\u2014", "NetExposure": 0.144994025, "Exposure": 0.144994025, "PctNAV": 0.144994025}, {"Strategy": "SPY Call Spread", "Sector": "EQD", "SectorName": "Equity Derivatives", "AssetClass": "Option", "MarketValue": 0.010740825, "WTDPnL": 0.010740825, "YTDPnL": 0.010740825, "CashGamma": 45.2505854402, "DeltaExposure": 0.1408263003, "DV01": 0.0, "Income": 0.0, "Legs": 2, "Expiry": "2027-01-18", "NetExposure": 0.1408263003, "Exposure": 0.1408263003, "PctNAV": 0.1408263003}, {"Strategy": "Invesco CurrencyShares Euro Trust", "Sector": "FX", "SectorName": "Foreign Exchange", "AssetClass": "Commodity ETF", "MarketValue": 0.1353933365, "WTDPnL": 0.0002148075, "YTDPnL": -0.0003158967, "CashGamma": 0.0, "DeltaExposure": 0.1353933365, "DV01": 0.0, "Income": 0.0, "Legs": 1, "Expiry": "\u2014", "NetExposure": 0.1353933365, "Exposure": 0.1353933365, "PctNAV": 0.1353933365}, {"Strategy": "iShares 7-10 Year Treasury Bond ETF", "Sector": "IR", "SectorName": "Interest Rate Products", "AssetClass": "Bond ETF", "MarketValue": 0.1292594149, "WTDPnL": -0.0008407095, "YTDPnL": -0.0063894051, "CashGamma": 0.0, "DeltaExposure": 0.1292594149, "DV01": 9.5652e-05, "Income": 0.0026720599, "Legs": 1, "Expiry": "\u2014", "NetExposure": 0.1292594149, "Exposure": 0.1292594149, "PctNAV": 0.1292594149}, {"Strategy": "SPDR Gold Shares", "Sector": "M", "SectorName": "Metals", "AssetClass": "Commodity ETF", "MarketValue": 0.1170665638, "WTDPnL": -0.0006101338, "YTDPnL": -0.0187153396, "CashGamma": 0.0, "DeltaExposure": 0.1170665638, "DV01": 0.0, "Income": 0.0, "Legs": 1, "Expiry": "\u2014", "NetExposure": 0.1170665638, "Exposure": 0.1170665638, "PctNAV": 0.1170665638}, {"Strategy": "US Treasury 4.25% due 15-Aug-2035", "Sector": "IR", "SectorName": "Interest Rate Products", "AssetClass": "Bond", "MarketValue": 0.0373976919, "WTDPnL": -0.0001453005, "YTDPnL": -0.0019703416, "CashGamma": 0.0, "DeltaExposure": 0.0, "DV01": 2.75479e-05, "Income": 0.0008236571, "Legs": 1, "Expiry": "\u2014", "NetExposure": 0.0373976919, "Exposure": 0.0373976919, "PctNAV": 0.0373976919}], "stress": [{"Scenario": "Equity \u221210%", "Detail": "Beta-adjusted equity plus option delta and gamma", "PctNAV": -0.0521242383}, {"Scenario": "Equity +10%", "Detail": "Beta-adjusted equity plus option delta and gamma", "PctNAV": 0.0565090578}, {"Scenario": "Rates +100bp", "Detail": "Parallel shift through net DV01", "PctNAV": -0.0123199867}, {"Scenario": "Rates \u2212100bp", "Detail": "Parallel shift through net DV01", "PctNAV": 0.0123199867}, {"Scenario": "USD +5%", "Detail": "Dollar appreciates against every FX position", "PctNAV": -0.0067696668}, {"Scenario": "Implied vol +5 pts", "Detail": "Net book vega times five volatility points", "PctNAV": 0.0009883369}, {"Scenario": "Composite crisis", "Detail": "Equity \u221220% and rates \u2212150bp together", "PctNAV": -0.081383677}], "fi": [{"Name": "iShares 7-10 Year Treasury Bond ETF", "AssetClass": "Bond ETF", "MarketValue": 0.1292594149, "Notional": 0.1292594149, "ModDuration": 7.4, "Convexity": 0.0, "YTM": 0.0, "DV01": 9.5652e-05, "Accrued": 0.0, "IncomeITD": 0.0026720599}, {"Name": "US Treasury 4.25% due 15-Aug-2035", "AssetClass": "Bond", "MarketValue": 0.0373976919, "Notional": 0.0373976919, "ModDuration": 7.3662033045, "Convexity": 64.2178847369, "YTM": 0.047342642, "DV01": 2.75479e-05, "Accrued": 8.95279e-05, "IncomeITD": 0.0008236571}], "greeks": [{"Strategy": "SPY Call Spread", "Sector": "EQD", "SectorName": "Equity Derivatives", "AssetClass": "Option", "MarketValue": 0.010740825, "WTDPnL": 0.010740825, "YTDPnL": 0.010740825, "CashGamma": 4.38482e-05, "Vega": 1.9766737194, "Theta": -0.2412950298, "DeltaExposure": 0.1408263003, "DV01": 0.0, "Income": 0.0, "Legs": 2, "Expiry": "2027-01-18", "NetExposure": 0.1408263003, "Exposure": 0.1408263003, "PctNAV": 0.1408263003}]};
+const S = D.stats;
+const PUB = !!D.public;   // public build: every "money" value is already a share of NAV
+const $ = (id) => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const SERIES = n => `var(--series-${n})`;
+
+/* ---------- formatting ---------- */
+const usd = (v, d=0) => (v<0?"-":"") + "$" + Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+const cmp = v => { const a=Math.abs(v);
+  if(a>=1e9) return (v<0?"-":"")+"$"+(a/1e9).toFixed(2)+"B";
+  if(a>=1e6) return (v<0?"-":"")+"$"+(a/1e6).toFixed(1)+"M";
+  if(a>=1e3) return (v<0?"-":"")+"$"+(a/1e3).toFixed(0)+"K";
+  return usd(v); };
+const pct = (v,d=2) => (v*100).toFixed(d)+"%";
+const spct = (v,d=2) => (v>=0?"+":"")+(v*100).toFixed(d)+"%";
+const num = (v,d=2) => v==null?"–":v.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+const sgn = v => v>=0 ? "up" : "down";
+/* In the public build the underlying numbers ARE fractions of NAV, so the same
+   call site renders a weight instead of a dollar figure. No dollars exist in
+   the payload to hide. */
+const money  = v => v==null ? "–" : (PUB ? pct(v,1) : cmp(v));          // a weight
+const moneyS = v => v==null ? "–" : (PUB ? spct(v,2) : cmp(v));         // a P&L
+const moneyA = v => v==null ? "–" : (PUB ? pct(Math.abs(v),1) : cmp(v));
+const bpfmt  = v => (v>=0?"+":"−") + Math.abs(v).toFixed(1) + " bp";
+const unit   = PUB ? " %NAV" : "";
+
+/* ---------- tooltip ---------- */
+const tip = $("tip");
+function showTip(evt, html){
+  tip.innerHTML = html; tip.style.opacity = 1;
+  const r = tip.getBoundingClientRect();
+  let x = evt.clientX + 14, y = evt.clientY - 12;
+  if (x + r.width > innerWidth - 8) x = evt.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = innerHeight - r.height - 8;
+  tip.style.left = x+"px"; tip.style.top = Math.max(8,y)+"px";
+}
+const hideTip = () => tip.style.opacity = 0;
+
+function el(tag, attrs, parent){
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function svgIn(host, w, h){
+  host.innerHTML = "";
+  const s = el("svg", {viewBox:`0 0 ${w} ${h}`, role:"img"}, host);
+  return s;
+}
+function niceTicks(lo, hi, n=5){
+  const span = hi - lo || 1;
+  const raw = span / n;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1,2,2.5,5,10].map(m=>m*mag).find(v=>v>=raw) || 10*mag;
+  const start = Math.floor(lo/step)*step, out=[];
+  for(let v=start; v<=hi+step*1e-9; v+=step) out.push(+v.toFixed(10));
+  return out;
+}
+
+/* ---------- KPI tiles ---------- */
+const kpis = PUB ? [
+  ["Return since inception", spct(S.RetITD), `benchmark ${spct(S.BenchITD)}`, sgn(S.RetITD)],
+  ["Return YTD", spct(S.RetYTD), `benchmark ${spct(S.BenchYTD)} &middot; ${spct(S.RetYTD-S.BenchYTD)} active`, sgn(S.RetYTD)],
+  ["Return WTD", spct(S.RetWTD), `benchmark ${spct(S.BenchWTD)}`, sgn(S.RetWTD)],
+  ["Gross exposure", S.Leverage.toFixed(2)+"&times;", `${pct(S.CashPct,1)} of the book in cash`],
+  ["Volatility", pct(S.Vol,1), `beta ${S.Beta.toFixed(2)} &middot; TE ${pct(S.TrackingError,1)}`],
+  ["Sharpe ratio", S.Sharpe.toFixed(2), `Sortino ${S.Sortino.toFixed(2)} &middot; Calmar ${S.Calmar.toFixed(2)}`],
+  ["Max drawdown", pct(S.MaxDD,1), `currently ${pct(S.CurrentDD,1)}`, "down"],
+  ["VaR 99% / 5-day", pct(S.VaRPctNAV,2), `of NAV &middot; expected shortfall ${pct(S.ESPct,2)}`],
+  ["Net delta exposure", pct(S.NetDeltaPct,0), `${pct(S.BetaExpPct,0)} beta-adjusted`],
+  ["Rate sensitivity", spct(-S.DV01bp/100, 2), `of NAV if rates rise 100bp`],
+  ["Income YTD", pct(S.IncomeYTDPct,2), `${pct(S.IncomeITDPct,2)} since inception`, "up"],
+  ["Vol sensitivity", bpfmt(S.Vegabp), `of NAV per vol point &middot; theta ${bpfmt(S.Thetabp)} / day`],
+] : [
+  ["Net asset value", cmp(S.NAV), `${cmp(S.Cash)} cash &middot; ${S.Leverage.toFixed(2)}&times; exposure`],
+  ["Return YTD", spct(S.RetYTD), `benchmark ${spct(S.BenchYTD)} &middot; ${spct(S.RetYTD-S.BenchYTD)} active`, sgn(S.RetYTD)],
+  ["Return WTD", spct(S.RetWTD), `benchmark ${spct(S.BenchWTD)}`, sgn(S.RetWTD)],
+  ["Volatility", pct(S.Vol,1), `beta ${S.Beta.toFixed(2)} &middot; TE ${pct(S.TrackingError,1)}`],
+  ["Sharpe ratio", S.Sharpe.toFixed(2), `Sortino ${S.Sortino.toFixed(2)} &middot; Calmar ${S.Calmar.toFixed(2)}`],
+  ["Max drawdown", pct(S.MaxDD,1), `currently ${pct(S.CurrentDD,1)}`, "down"],
+  ["VaR 99% / 5-day", cmp(S.VaR), `${pct(S.VaRPctNAV,1)} of NAV &middot; ES ${cmp(S.ES)}`],
+  ["Net DV01", usd(S.NetDV01), "per basis point of parallel shift"],
+  ["Net vega", usd(S.NetVega), `theta ${usd(S.NetTheta)}/day`],
+  ["Income YTD", cmp(S.IncomeYTD), `${cmp(S.IncomeITD)} since inception`, "up"],
+];
+$("kpis").innerHTML = kpis.map(([k,v,n,c]) =>
+  `<div class="kpi"><div class="k">${k}</div><div class="v ${c||""}">${v}</div><div class="n">${n}</div></div>`).join("");
+$("asof").innerHTML = `As of <b>${S.AsOf}</b> &middot; ${D.strategies.length} positions across ${D.sectors.length} sectors`
+  + (PUB ? " &middot; weights and risk shown as a share of net asset value"
+         : " &middot; reporting currency USD");
+if (PUB) {
+  document.querySelector(".demo").innerHTML =
+    "Public view &mdash; every figure is a weight, a return or a ratio. No dollar amounts are published.";
+  document.querySelector(".stamp").textContent = "Rebuilt " + D.generated;
+}
+
+/* ---------- line chart: cumulative return ---------- */
+function lineChart(host, dates, series, fmt){
+  const W=1000, H=340, m={t:12,r:16,b:30,l:58};
+  const iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const s = svgIn(host, W, H);
+  const all = series.flatMap(x=>x.v);
+  const lo = Math.min(...all), hi = Math.max(...all);
+  const ticks = niceTicks(lo, hi, 5);
+  const y0=ticks[0], y1=ticks[ticks.length-1];
+  const X = i => m.l + iw*i/(dates.length-1);
+  const Y = v => m.t + ih*(1-(v-y0)/(y1-y0));
+  ticks.forEach(t=>{
+    el("line",{x1:m.l,x2:W-m.r,y1:Y(t),y2:Y(t),class:t===0?"ax":"gl"},s);
+    const tx=el("text",{x:m.l-9,y:Y(t)+4,class:"tick","text-anchor":"end"},s);
+    tx.textContent = fmt(t);
+  });
+  const step = Math.ceil(dates.length/8);
+  dates.forEach((d,i)=>{ if(i%step) return;
+    const tx=el("text",{x:X(i),y:H-9,class:"tick","text-anchor":"middle"},s);
+    tx.textContent = d.slice(0,7);
+  });
+  series.forEach(ser=>{
+    const dd = ser.v.map((v,i)=>`${i?"L":"M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+    if(ser.fill) el("path",{d:dd+`L${X(ser.v.length-1)},${Y(y0<0?0:y0)}L${X(0)},${Y(y0<0?0:y0)}Z`,
+      fill:ser.color,opacity:.14},s);
+    el("path",{d:dd,fill:"none",stroke:ser.color,"stroke-width":2,
+      "stroke-linejoin":"round","stroke-linecap":"round"},s);
+  });
+  const cross = el("line",{x1:0,x2:0,y1:m.t,y2:m.t+ih,class:"ax",opacity:0,
+    "stroke-dasharray":"3 3"},s);
+  const dots = series.map(ser=>el("circle",{r:4.5,fill:ser.color,stroke:"var(--surface-1)",
+    "stroke-width":2,opacity:0},s));
+  el("rect",{x:m.l,y:m.t,width:iw,height:ih,fill:"transparent"},s)
+    .addEventListener("pointermove", ev=>{
+      const bb = s.getBoundingClientRect();
+      const px = (ev.clientX-bb.left)/bb.width*W;
+      let i = Math.round((px-m.l)/iw*(dates.length-1));
+      i = Math.max(0, Math.min(dates.length-1, i));
+      cross.setAttribute("x1",X(i)); cross.setAttribute("x2",X(i)); cross.setAttribute("opacity",.6);
+      series.forEach((ser,k)=>{ dots[k].setAttribute("cx",X(i)); dots[k].setAttribute("cy",Y(ser.v[i]));
+        dots[k].setAttribute("opacity",1); });
+      showTip(ev, `<b>${dates[i]}</b>` + series.map(ser=>
+        `<div class="r"><span><span class="sw" style="background:${ser.color}"></span>${ser.name}</span><b>${fmt(ser.v[i])}</b></div>`).join(""));
+    });
+  s.addEventListener("pointerleave", ()=>{ hideTip(); cross.setAttribute("opacity",0);
+    dots.forEach(d=>d.setAttribute("opacity",0)); });
+}
+
+if (D.benchmark) $("benchname").textContent = "Benchmark (" + D.benchmark + ")";
+lineChart($("c-curve"), D.curve.dates, [
+  {name:"Portfolio", v:D.curve.port, color:SERIES(1)},
+  {name:D.benchmark ? "Benchmark ("+D.benchmark+")" : "Benchmark",
+   v:D.curve.bench, color:SERIES(2)},
+], v=>v.toFixed(0)+"%");
+
+lineChart($("c-dd"), D.curve.dates, [
+  {name:"Drawdown", v:D.curve.dd, color:SERIES(8), fill:true},
+], v=>v.toFixed(1)+"%");
+
+/* ---------- horizontal bars ---------- */
+function hbar(host, rows, opts={}){
+  const W=opts.W||560, rh=opts.rh||30;
+  const m={t:6,r:opts.r||96,b:16,l:opts.labelW||158};
+  const H=m.t+rows.length*rh+m.b, iw=W-m.l-m.r;
+  const s = svgIn(host, W, H);
+  const vals = rows.map(r=>r.v);
+  let lo = Math.min(0,...vals), hi = Math.max(0,...vals);
+  const pad = ((hi-lo)||1)*(opts.pad ?? 0.16);      // room for outside value labels
+  if (lo < 0) lo -= pad;
+  if (hi > 0) hi += pad;
+  const X = v => m.l + iw*(v-lo)/((hi-lo)||1);
+  const zero = X(0);
+  el("line",{x1:zero,x2:zero,y1:m.t,y2:m.t+rows.length*rh,class:"ax"},s);
+  rows.forEach((r,i)=>{
+    const y=m.t+i*rh+4, h=rh-12;
+    const x=Math.min(zero,X(r.v)), w=Math.max(Math.abs(X(r.v)-zero),1.5);
+    const g = el("g",{},s);
+    el("rect",{x,y,width:w,height:h,rx:4,fill:r.color||SERIES((i%8)+1)},g);
+    const lb=el("text",{x:m.l-11,y:y+h/2+4,class:"tick","text-anchor":"end",
+      fill:"var(--text-primary)","font-family":"var(--ui)","font-size":opts.fs||12.5},s); lb.textContent=r.k;
+    // value label sits outside the bar end; if that would collide with the
+    // category column, flip it to the far side of the zero line instead
+    const fs=opts.fs||12.5, tw=r.label.length*fs*0.56;
+    let vx = r.v>=0 ? X(r.v)+8 : x-8, anc = r.v>=0 ? "start" : "end";
+    if (r.v<0 && vx-tw < m.l+4){ vx = zero+9; anc = "start"; }
+    if (r.v>=0 && vx+tw > W-4){ vx = zero-9; anc = "end"; }
+    const vl=el("text",{x:vx,y:y+h/2+4,class:"tick","font-family":"var(--mono)",
+      "text-anchor":anc,fill:"var(--text-secondary)","font-size":fs},s);
+    vl.textContent = r.label;
+    g.addEventListener("pointermove", ev=>showTip(ev,
+      `<b>${r.k}</b>${r.detail?`<div style="color:var(--text-secondary);margin:2px 0 5px;max-width:230px;white-space:normal">${r.detail}</div>`:""}${(r.tip||[]).map(t=>`<div class="r"><span>${t[0]}</span><b>${t[1]}</b></div>`).join("")}`));
+    g.addEventListener("pointerleave", hideTip);
+  });
+}
+
+const secColor = {}; D.sectors.forEach((x,i)=>secColor[x.Sector]=SERIES((i%8)+1));
+hbar($("c-exp"), D.sectors.map(x=>({
+  k:x.SectorName, v:x.PctNAV, color:secColor[x.Sector],
+  label:pct(x.PctNAV,0),
+  tip:[["Economic exposure",money(x.Exposure)],["Market value",money(x.MarketValue)],
+       ["Delta exposure",money(x.DeltaExposure)],["Beta-adj exposure",money(x.BetaExposure)],
+       ["If rates +100bp",PUB?spct(-x.DV01,2):usd(-x.DV01*100)],["Positions",x.Positions]]
+})), {labelW:150, r:70});
+
+hbar($("c-cvar"), D.sectors.slice().sort((a,b)=>b.ComponentVaR-a.ComponentVaR).map(x=>({
+  k:x.SectorName, v:x.ComponentVaR, color:secColor[x.Sector],
+  label:PUB?pct(x.ComponentVaR,2):cmp(x.ComponentVaR),
+  tip:[["Component VaR",PUB?pct(x.ComponentVaR,3)+" of NAV":usd(x.ComponentVaR)],
+       ["Share of total",pct(x.ComponentVaR/(PUB?S.VaRParamPct:S.VaRParam),1)],
+       ["Economic exposure",money(x.Exposure)]]
+})), {labelW:168, r:88});
+
+hbar($("c-stress"), D.stress.map(x=>({
+  k:x.Scenario, v:PUB?x.PctNAV:x.PnL, color:x.PctNAV>=0?SERIES(1):SERIES(8),
+  label:PUB?spct(x.PctNAV,1):cmp(x.PnL)+"  ("+spct(x.PctNAV,1)+")",
+  tip:PUB?[["Impact on NAV",spct(x.PctNAV,2)]]:[["P&L",usd(x.PnL)],["Share of NAV",spct(x.PctNAV,2)]]
+})), {labelW:250});
+
+/* ---------- stacked income bars ---------- */
+(function incomeChart(){
+  const host=$("c-inc"), W=1000, m={t:10,r:14,b:34,l:60};
+  const H=340, iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const s=svgIn(host,W,H);
+  const M=D.income.months;
+  const tot=M.map((_,i)=>D.income.dividend[i]+D.income.coupon[i]+D.income.interest[i]);
+  const ticks=niceTicks(0,Math.max(...tot),4);
+  const y1=ticks[ticks.length-1];
+  const Y=v=>m.t+ih*(1-v/y1);
+  ticks.forEach(t=>{ el("line",{x1:m.l,x2:W-m.r,y1:Y(t),y2:Y(t),class:t===0?"ax":"gl"},s);
+    const tx=el("text",{x:m.l-9,y:Y(t)+4,class:"tick","text-anchor":"end"},s);
+    tx.textContent=PUB?pct(t,2):cmp(t); });
+  const bw=Math.min(46, iw/M.length*0.68);
+  M.forEach((mo,i)=>{
+    const x=m.l+iw*(i+0.5)/M.length-bw/2;
+    let acc=0;
+    const parts=[["Dividends",D.income.dividend[i],SERIES(1)],
+                 ["Coupons",D.income.coupon[i],SERIES(2)],
+                 ["Cash interest",D.income.interest[i],SERIES(3)]];
+    const f = PUB ? (v=>pct(v,3)) : usd;
+    const g=el("g",{},s);
+    parts.forEach(([nm,v,c],k)=>{
+      if(v<=0) return;
+      const yTop=Y(acc+v), hgt=Math.max(Y(acc)-Y(acc+v)-2,1);
+      el("rect",{x,y:yTop,width:bw,height:hgt,rx:k===parts.length-1?4:2,fill:c},g);
+      acc+=v;
+    });
+    g.addEventListener("pointermove",ev=>showTip(ev,`<b>${mo}</b>`+
+      parts.map(([nm,v,c])=>`<div class="r"><span><span class="sw" style="background:${c}"></span>${nm}</span><b>${f(v)}</b></div>`).join("")+
+      `<div class="r" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px"><span>Total</span><b>${f(tot[i])}</b></div>`));
+    g.addEventListener("pointerleave",hideTip);
+    if(i%2===0){ const tx=el("text",{x:m.l+iw*(i+0.5)/M.length,y:H-11,class:"tick","text-anchor":"middle"},s);
+      tx.textContent=mo.slice(2); }
+  });
+})();
+
+/* ---------- sortable tables ---------- */
+function table(node, cols, rows, foot){
+  let dir=-1, key=cols.find(c=>c.sort)?.f || cols[1].f;
+  function draw(){
+    const r=[...rows].sort((a,b)=>{
+      const x=a[key], y=b[key];
+      if(typeof x==="string") return dir*x.localeCompare(y);
+      return dir*((x??0)-(y??0));
+    });
+    node.innerHTML =
+      `<thead><tr>${cols.map(c=>`<th data-f="${c.f}" ${c.f===key?`class="so" data-dir="${dir}"`:""} title="${c.t||c.h}">${c.h}</th>`).join("")}</tr></thead>`+
+      `<tbody>${r.map(row=>`<tr>${cols.map(c=>`<td>${c.r(row)}</td>`).join("")}</tr>`).join("")}</tbody>`+
+      (foot?`<tfoot><tr>${cols.map(c=>`<td>${foot(c,r)}</td>`).join("")}</tr></tfoot>`:"");
+    node.querySelectorAll("th").forEach(th=>th.onclick=()=>{
+      const f=th.dataset.f; dir = (f===key) ? -dir : -1; key=f; draw();
+    });
+  }
+  draw();
+}
+
+const HOLD_COLS = [
+  {f:"Strategy", h:"Position", r:x=>`<span class="dot" style="background:${secColor[x.Sector]}"></span>${x.Strategy}`+
+     (x.Legs>1?` <span style="color:var(--muted)">(${x.Legs} legs)</span>`:"")},
+  {f:"AssetClass", h:"Type", r:x=>`<span style="color:var(--text-secondary)">${x.AssetClass}</span>`},
+  {f:"Exposure", h:"Exposure"+unit, sort:1, r:x=>moneyA(x.Exposure)},
+  ...(PUB ? [] : [{f:"PctNAV", h:"% NAV", r:x=>pct(x.PctNAV,1)}]),
+  {f:"MarketValue", h:"Market value"+unit, r:x=>money(x.MarketValue)},
+  {f:"WTDPnL", h:"WTD P&L"+unit, r:x=>`<span class="${sgn(x.WTDPnL)}">${moneyS(x.WTDPnL)}</span>`},
+  {f:"YTDPnL", h:"YTD P&L"+unit, r:x=>`<span class="${sgn(x.YTDPnL)}">${moneyS(x.YTDPnL)}</span>`},
+  {f:"DeltaExposure", h:"Delta exp."+unit, t:"Delta-adjusted market exposure", r:x=>money(x.DeltaExposure)},
+  {f:"DV01", h:PUB?"If rates +100bp":"DV01", t:PUB?"Impact on NAV of a 100bp parallel rise":"Dollars per basis point",
+   r:x=>x.DV01?(PUB?spct(-x.DV01,2):usd(x.DV01)):"–"},
+  {f:"Income", h:"Income"+unit, t:"Dividends and coupons received since inception", r:x=>x.Income?money(x.Income):"–"},
+];
+let secSel = "ALL";
+function drawHold(){
+  const rows = secSel==="ALL" ? D.strategies : D.strategies.filter(x=>x.Sector===secSel);
+  table($("t-hold"), HOLD_COLS, rows, (c,r)=>{
+    if(c.f==="Strategy") return `${rows.length} positions`;
+    if(["Exposure","MarketValue","WTDPnL","YTDPnL","DeltaExposure","Income"].includes(c.f))
+      return money(r.reduce((a,x)=>a+(x[c.f]||0),0));
+    if(c.f==="DV01"){ const t=r.reduce((a,x)=>a+(x.DV01||0),0); return PUB?spct(-t,2):usd(t); }
+    if(c.f==="PctNAV") return pct(r.reduce((a,x)=>a+x.PctNAV,0),1);
+    if(c.f==="AssetClass") return "";
+    return "";
+  });
+}
+$("secfilter").innerHTML =
+  [`<button class="tab" data-s="ALL" aria-pressed="true">All sectors</button>`]
+  .concat(D.sectors.map(x=>`<button class="tab" data-s="${x.Sector}" aria-pressed="false">`+
+    `<span class="dot" style="background:${secColor[x.Sector]}"></span>${x.SectorName}</button>`)).join("");
+$("secfilter").addEventListener("click", ev=>{
+  const b=ev.target.closest(".tab"); if(!b) return;
+  secSel=b.dataset.s;
+  $("secfilter").querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-pressed", t===b));
+  drawHold();
+});
+drawHold();
+
+table($("t-greeks"), PUB ? [
+  {f:"Strategy", h:"Strategy", r:x=>`<span class="dot" style="background:${secColor[x.Sector]}"></span>${x.Strategy}`},
+  {f:"Expiry", h:"Expiry", r:x=>x.Expiry},
+  {f:"MarketValue", h:"Value (% NAV)", sort:1, r:x=>money(x.MarketValue)},
+  {f:"DeltaExposure", h:"Delta exp. (% NAV)", r:x=>money(x.DeltaExposure)},
+  {f:"CashGamma", h:"Gamma (% NAV / 1% move)", t:"How much the delta exposure changes for a 1% move in the underlying",
+   r:x=>spct(x.CashGamma,3)},
+  {f:"Vega", h:"Vega (bp / vol pt)", r:x=>bpfmt(x.Vega)},
+  {f:"Theta", h:"Theta (bp / day)", r:x=>`<span class="${sgn(x.Theta)}">${bpfmt(x.Theta)}</span>`},
+] : [
+  {f:"Strategy", h:"Strategy", r:x=>`<span class="dot" style="background:${secColor[x.Sector]}"></span>${x.Strategy}`},
+  {f:"Expiry", h:"Expiry", r:x=>x.Expiry},
+  {f:"MarketValue", h:"Value", sort:1, r:x=>cmp(x.MarketValue)},
+  {f:"Delta", h:"Delta", r:x=>num(x.Delta,0)},
+  {f:"DeltaExposure", h:"Delta $", r:x=>cmp(x.DeltaExposure)},
+  {f:"Gamma", h:"Gamma", r:x=>num(x.Gamma,1)},
+  {f:"Vega", h:"Vega", r:x=>usd(x.Vega)},
+  {f:"Theta", h:"Theta/day", r:x=>`<span class="${sgn(x.Theta)}">${usd(x.Theta)}</span>`},
+], D.greeks, (c,r)=>{
+  const sum=f=>r.reduce((a,x)=>a+(x[f]||0),0);
+  if(c.f==="Strategy") return "Book total";
+  if(["MarketValue","DeltaExposure"].includes(c.f)) return money(sum(c.f));
+  if(["Vega","Theta"].includes(c.f)) return PUB?bpfmt(sum(c.f)):usd(sum(c.f));
+  if(c.f==="CashGamma") return spct(sum("CashGamma"),3);
+  if(c.f==="Delta") return num(sum("Delta"),0);
+  if(c.f==="Gamma") return num(sum("Gamma"),1);
+  return "";
+});
+
+table($("t-fi"), [
+  {f:"Name", h:"Instrument", r:x=>x.Name},
+  {f:"MarketValue", h:"Value"+unit, r:x=>x.MarketValue?money(x.MarketValue):money(x.Notional)},
+  {f:"YTM", h:"Yield", r:x=>x.YTM?pct(x.YTM,2):"–"},
+  {f:"ModDuration", h:"Mod. dur.", r:x=>x.ModDuration?num(x.ModDuration,1):"–"},
+  {f:"Convexity", h:"Convexity", r:x=>x.Convexity?num(x.Convexity,1):"–"},
+  {f:"DV01", h:PUB?"If rates +100bp":"DV01", sort:1, r:x=>PUB?spct(-x.DV01,2):usd(x.DV01)},
+  {f:"Accrued", h:"Accrued"+unit, r:x=>x.Accrued?money(x.Accrued):"–"},
+  {f:"IncomeITD", h:"Income"+unit, r:x=>x.IncomeITD?money(x.IncomeITD):"–"},
+], D.fi, (c,r)=>{
+  const sum=f=>r.reduce((a,x)=>a+(x[f]||0),0);
+  if(c.f==="Name") return "Total";
+  if(c.f==="DV01") return PUB?spct(-sum("DV01"),2):usd(sum("DV01"));
+  if(c.f==="Accrued") return money(sum("Accrued"));
+  if(c.f==="IncomeITD") return money(sum("IncomeITD"));
+  return "";
+});
+</script>
+</body></html>
